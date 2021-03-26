@@ -17,7 +17,7 @@ import { useRouter } from 'next/router';
 
 interface registerProps {}
 
-export const Login: React.FC<r{}> = ({}) => {
+export const Login: React.FC<{}> = ({}) => {
 	const router = useRouter();
 	const [{}, login] = useLoginMutation();
 	return (
