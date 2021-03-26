@@ -108,15 +108,13 @@ let UserResolver = class UserResolver {
                     .insert({
                     username: options.username,
                     password: hashedPassword,
-                    created_At: new Date(),
-                    updated_At: new Date(),
+                    created_at: new Date(),
+                    updated_at: new Date(),
                 })
                     .returning('*');
                 user = result[0];
-                console.log('result: ', result);
             }
             catch (err) {
-                console.log(err);
                 if (err.code === '23505') {
                     return {
                         errors: [
