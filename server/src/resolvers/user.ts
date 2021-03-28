@@ -1,3 +1,7 @@
+//_______________________________________________________________
+//                           IMPORTS                           
+//_______________________________________________________________
+
 import { User } from '../entities/User';
 import {
 	Resolver,
@@ -11,9 +15,15 @@ import {
 import argon2 from 'argon2';
 import { MyContext } from 'src/types';
 import { EntityManager } from '@mikro-orm/postgresql';
-import { COOKIE_NAME } from '../constants';
+import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from '../constants';
 import { usernamePasswordInput } from '../utils/usernamePasswordInput';
 import { validateRegister } from '../utils/validateRegister';
+import { sendEmail } from '../utils/sendEmail';
+import { v4 } from 'uuid';
+
+//_______________________________________________________________
+//                       OBJECT TYPES                                    
+//_______________________________________________________________
 
 @ObjectType()
 class FieldError {
@@ -32,12 +42,94 @@ class UserResponse {
 	user?: User;
 }
 
+//_______________________________________________________________
+//                        RESOLVERS                                    
+//_______________________________________________________________
+
 @Resolver()
 export class UserResolver {
+// _____________________________________________________________
+//                 CHANGE PASSWORD MUTATION
+// _____________________________________________________________
+
+  @Mutation(() => UserResponse)
+  async changePassword(
+    @Arg("token") token: string
+    @Arg("newPassword") newPassword: string
+    @Ctx() {redis, em, req}: MyContext
+  ): Promise<UserResponse> {
+    if (newPassword.length <= 3) {
+      return { errors: [
+        {
+          field: 'newPassword',
+          message: 'Length must be greater than 3.',
+        },
+      ]};
+    }
+
+    const userId = await redis.get( FORGET_PASSWORD_PREFIX + token )
+    if (!userId) {
+      return {
+        errors: [
+          {
+            field: "token",
+            message: "token expired.",
+          }
+        ]
+      }
+    }
+
+    const user = await em.findOne(User, {id: parseInt(userId)})
+
+    if (!user) {
+      return {
+        errors: [
+          {
+            field: "token",
+            message: "user no longer exists.",
+          }
+        ]
+      }
+    }
+    user.password = await argon2.hash(newPassword)
+    await em.persistAndFlush(user)
+req.session.userId = user.id
+
+    return {user}
+
+  }
+// _____________________________________________________________
+//                   FORGOT PASSWORD MUTATION
+// _____________________________________________________________
 	@Mutation(() => Boolean)
-	async forgotPassword(@Arg('email') email: string, @Ctx() { em }: MyContext) {
-		const user = await em.findOne(Post, { email });
+	async forgotPassword(
+		@Arg('email') email: string,
+		@Ctx() { em, redis }: MyContext
+	) {
+		const user = await em.findOne(User, { email });
+		if (!user) {
+			// the email is not in the database.
+			return true;
+		}
+
+		const token = v4();
+
+		await redis.set(
+			FORGET_PASSWORD_PREFIX + token,
+			user.id,
+			'ex',
+			1000 * 60 * 60 * 24 * 3
+		); // 3 days
+
+		await sendEmail(
+			email,
+			`<a href="http://localhost:3000/change-password/${token}">reset password</a>`
+      return true
+		);
 	}
+// _____________________________________________________________
+//                         ME QUERY
+// _____________________________________________________________
 	@Query(() => User, { nullable: true })
 	async me(@Ctx() { req, em }: MyContext) {
 		// you are not logged in
@@ -48,8 +140,11 @@ export class UserResolver {
 		const user = await em.findOne(User, { id: req.session.userID });
 		return user;
 	}
-
-	@Mutation(() => UserResponse)
+ 
+// _____________________________________________________________
+//                    REGISTER MUTATION 
+// _____________________________________________________________
+  @Mutation(() => UserResponse)
 	async register(
 		@Arg('options') options: usernamePasswordInput,
 		@Ctx() { em, req }: MyContext
@@ -95,8 +190,11 @@ export class UserResolver {
 
 		return { user };
 	}
+// _____________________________________________________________
+//                     LOGIN MUTATION
+// _____________________________________________________________
 
-	@Mutation(() => UserResponse)
+  @Mutation(() => UserResponse)
 	async login(
 		@Arg('usernameOrEmail') usernameOrEmail: string,
 		@Arg('password') password: string,
@@ -135,7 +233,11 @@ export class UserResolver {
 		return {
 			user,
 		};
-	}
+  }
+	
+// _____________________________________________________________
+//                     LOGOUT MUTATION
+// _____________________________________________________________
 	@Mutation(() => Boolean)
 	logout(@Ctx() { req, res }: MyContext) {
 		return new Promise((resolve) =>
