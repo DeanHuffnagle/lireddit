@@ -66,14 +66,14 @@ export class UserResolver {
         },
       ]};
     }
-
-    const userId = await redis.get( FORGET_PASSWORD_PREFIX + token )
+    const key = FORGET_PASSWORD_PREFIX + token
+    const userId = await redis.get( key );
     if (!userId) {
       return {
         errors: [
           {
             field: "token",
-            message: "token expired.",
+            message: "Token expired.",
           }
         ]
       }
@@ -86,14 +86,17 @@ export class UserResolver {
         errors: [
           {
             field: "token",
-            message: "user no longer exists.",
+            message: "User no longer exists.",
           }
         ]
       }
     }
     user.password = await argon2.hash(newPassword)
     await em.persistAndFlush(user)
-req.session.userId = user.id
+    
+    await redis.del(key)
+
+    req.session.userId = user.id
 
     return {user}
 
@@ -211,7 +214,7 @@ req.session.userId = user.id
 				errors: [
 					{
 						field: 'usernameOrEmail',
-						message: "that user doesn't exist.",
+						message: "User doesn't exist.",
 					},
 				],
 			};
@@ -222,7 +225,7 @@ req.session.userId = user.id
 				errors: [
 					{
 						field: 'password',
-						message: 'incorrect password',
+						message: 'Incorrect password.',
 					},
 				],
 			};

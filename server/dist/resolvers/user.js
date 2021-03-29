@@ -70,13 +70,14 @@ let UserResolver = class UserResolver {
                         },
                     ] };
             }
-            const userId = yield redis.get(constants_1.FORGET_PASSWORD_PREFIX + token);
+            const key = constants_1.FORGET_PASSWORD_PREFIX + token;
+            const userId = yield redis.get(key);
             if (!userId) {
                 return {
                     errors: [
                         {
                             field: "token",
-                            message: "token expired.",
+                            message: "Token expired.",
                         }
                     ]
                 };
@@ -87,13 +88,14 @@ let UserResolver = class UserResolver {
                     errors: [
                         {
                             field: "token",
-                            message: "user no longer exists.",
+                            message: "User no longer exists.",
                         }
                     ]
                 };
             }
             user.password = yield argon2_1.default.hash(newPassword);
             yield em.persistAndFlush(user);
+            yield redis.del(key);
             req.session.userId = user.id;
             return { user };
         });
@@ -169,7 +171,7 @@ let UserResolver = class UserResolver {
                     errors: [
                         {
                             field: 'usernameOrEmail',
-                            message: "that user doesn't exist.",
+                            message: "User doesn't exist.",
                         },
                     ],
                 };
@@ -180,7 +182,7 @@ let UserResolver = class UserResolver {
                     errors: [
                         {
                             field: 'password',
-                            message: 'incorrect password',
+                            message: 'Incorrect password.',
                         },
                     ],
                 };
