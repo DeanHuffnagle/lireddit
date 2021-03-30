@@ -176,8 +176,7 @@ export class UserResolver {
 				})
 				.returning('*')
 				.execute();
-			console.log('result: ', result);
-			user = result.raw;
+			user = result.raw[0];
 		} catch (err) {
 			console.log('err: ', err);
 			// duplicate username error

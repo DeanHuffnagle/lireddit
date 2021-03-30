@@ -1,36 +1,76 @@
+//_______________________________________________________________
+//                         IMPORTS
+//_______________________________________________________________
 import {
 	BaseEntity,
 	Column,
 	CreateDateColumn,
 	Entity,
+	OneToMany,
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
 import { Field, ObjectType } from 'type-graphql';
+import { Post } from './Post';
+
+//_______________________________________________________________
+//                       USER ENTITY
+//_______________________________________________________________
 
 @ObjectType()
 @Entity()
 export class User extends BaseEntity {
+	//_______________________________________________________________
+	//                         USER ID
+	//_______________________________________________________________
+
 	@Field()
 	@PrimaryGeneratedColumn()
 	id!: number;
 
-	@Field(() => String)
-	@CreateDateColumn()
-	createdAt: Date;
-
-	@Field(() => String)
-	@UpdateDateColumn()
-	updatedAt: Date;
+	//_______________________________________________________________
+	//                         USERNAME
+	//_______________________________________________________________
 
 	@Field()
 	@Column({ unique: true })
 	username!: string;
 
+	//_______________________________________________________________
+	//                         EMAIL
+	//_______________________________________________________________
+
 	@Field()
 	@Column({ unique: true })
 	email!: string;
 
+	//_______________________________________________________________
+	//                         PASSWORD
+	//_______________________________________________________________
+
 	@Column()
 	password!: string;
+
+	//_______________________________________________________________
+	//               ONE TO MANY RELATIONSHIP WITH POSTS
+	//_______________________________________________________________
+
+	@OneToMany(() => Post, (post) => post.creator)
+	posts: Post[];
+
+	//_______________________________________________________________
+	//                      CREATED AT
+	//_______________________________________________________________
+
+	@Field(() => String)
+	@CreateDateColumn()
+	createdAt: Date;
+
+	//_______________________________________________________________
+	//                      UPDATED AT
+	//_______________________________________________________________
+
+	@Field(() => String)
+	@UpdateDateColumn()
+	updatedAt: Date;
 }

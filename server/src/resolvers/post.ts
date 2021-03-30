@@ -1,44 +1,30 @@
-//_______________________________________________________________
-//                         IMPORTS
-//_______________________________________________________________
-import { Arg, Mutation, Query, Resolver } from 'type-graphql';
+//// Imports ////
+import { Arg, InputType, Mutation, Query, Resolver } from 'type-graphql';
 import { Post } from '../entities/Post';
-//_______________________________________________________________
-//                         RESOLVERS
-//_______________________________________________________________
+
+@InputType
+//// Resolver ////
 @Resolver()
 export class PostResolver {
-	//_______________________________________________________________
-	//                       FIND POSTS
-	//_______________________________________________________________
-
+	//// Find Posts ////
 	@Query(() => [Post])
 	async posts(): Promise<Post[]> {
 		return Post.find();
 	}
 
-	//_______________________________________________________________
-	//                         FIND POST
-	//_______________________________________________________________
-
+	//// Find Posts ////
 	@Query(() => Post, { nullable: true })
 	post(@Arg('id') id: number): Promise<Post | undefined> {
 		return Post.findOne(id);
 	}
 
-	//_______________________________________________________________
-	//                         CREATE POST
-	//_______________________________________________________________
-
+	//// Create Post ////
 	@Mutation(() => Post)
 	async createPost(@Arg('title') title: string): Promise<Post> {
 		return Post.create({ title }).save();
 	}
 
-	//_______________________________________________________________
-	//                        UPDATE POST
-	//_______________________________________________________________
-
+	//// Update Post ////
 	@Mutation(() => Post, { nullable: true })
 	async updatePost(
 		@Arg('id') id: number,
@@ -55,10 +41,7 @@ export class PostResolver {
 		return post;
 	}
 
-	//_______________________________________________________________
-	//                        DELETE POST
-	//_______________________________________________________________
-
+	//// Delete Post ////
 	@Mutation(() => Boolean)
 	async deletePost(@Arg('id') id: number): Promise<boolean> {
 		await Post.delete(id);

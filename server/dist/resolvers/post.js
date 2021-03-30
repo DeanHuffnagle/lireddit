@@ -94,6 +94,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "deletePost", null);
 PostResolver = __decorate([
+    type_graphql_1.InputType,
     type_graphql_1.Resolver()
 ], PostResolver);
 exports.PostResolver = PostResolver;
