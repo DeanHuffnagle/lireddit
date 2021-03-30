@@ -1,28 +1,28 @@
 //_______________________________________________________________
-//                           IMPORTS                           
+//                           IMPORTS
 //_______________________________________________________________
 
-import { User } from '../entities/User';
+import argon2 from 'argon2';
+import { MyContext } from 'src/types';
 import {
-	Resolver,
 	Arg,
-	Field,
 	Ctx,
+	Field,
 	Mutation,
 	ObjectType,
 	Query,
+	Resolver,
 } from 'type-graphql';
-import argon2 from 'argon2';
-import { MyContext } from 'src/types';
-import { EntityManager } from '@mikro-orm/postgresql';
+import { getConnection } from 'typeorm';
+import { v4 } from 'uuid';
 import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from '../constants';
+import { User } from '../entities/User';
+import { sendEmail } from '../utils/sendEmail';
 import { usernamePasswordInput } from '../utils/usernamePasswordInput';
 import { validateRegister } from '../utils/validateRegister';
-import { sendEmail } from '../utils/sendEmail';
-import { v4 } from 'uuid';
 
 //_______________________________________________________________
-//                       OBJECT TYPES                                    
+//                       OBJECT TYPES
 //_______________________________________________________________
 
 @ObjectType()
@@ -43,73 +43,80 @@ class UserResponse {
 }
 
 //_______________________________________________________________
-//                        RESOLVERS                                    
+//                        RESOLVERS
 //_______________________________________________________________
 
 @Resolver()
 export class UserResolver {
-// _____________________________________________________________
-//                 CHANGE PASSWORD MUTATION
-// _____________________________________________________________
+	// _____________________________________________________________
+	//                 CHANGE PASSWORD MUTATION
+	// _____________________________________________________________
 
-  @Mutation(() => UserResponse)
-  async changePassword(
-    @Arg("token") token: string
-    @Arg("newPassword") newPassword: string
-    @Ctx() {redis, em, req}: MyContext
-  ): Promise<UserResponse> {
-    if (newPassword.length <= 3) {
-      return { errors: [
-        {
-          field: 'newPassword',
-          message: 'Length must be greater than 3.',
-        },
-      ]};
-    }
-    const key = FORGET_PASSWORD_PREFIX + token
-    const userId = await redis.get( key );
-    if (!userId) {
-      return {
-        errors: [
-          {
-            field: "token",
-            message: "Token expired.",
-          }
-        ]
-      }
-    }
+	@Mutation(() => UserResponse)
+	async changePassword(
+		@Arg('token') token: string,
+		@Arg('newPassword') newPassword: string,
+		@Ctx() { redis, req }: MyContext
+	): Promise<UserResponse> {
+		if (newPassword.length <= 3) {
+			return {
+				errors: [
+					{
+						field: 'newPassword',
+						message: 'Length must be greater than 3.',
+					},
+				],
+			};
+		}
+		const key = FORGET_PASSWORD_PREFIX + token;
+		const userId = await redis.get(key);
+		if (!userId) {
+			return {
+				errors: [
+					{
+						field: 'token',
+						message: 'Token expired.',
+					},
+				],
+			};
+		}
+		const userIdNum = parseInt(userId);
+		const user = await User.findOne(userIdNum);
 
-    const user = await em.findOne(User, {id: parseInt(userId)})
+		if (!user) {
+			return {
+				errors: [
+					{
+						field: 'token',
+						message: 'User no longer exists.',
+					},
+				],
+			};
+		}
 
-    if (!user) {
-      return {
-        errors: [
-          {
-            field: "token",
-            message: "User no longer exists.",
-          }
-        ]
-      }
-    }
-    user.password = await argon2.hash(newPassword)
-    await em.persistAndFlush(user)
-    
-    await redis.del(key)
+		await User.update(
+			{ id: userIdNum },
+			{
+				password: await argon2.hash(newPassword),
+			}
+		);
 
-    req.session.userId = user.id
+		await redis.del(key);
 
-    return {user}
+		req.session.UserID = user.id;
 
-  }
-// _____________________________________________________________
-//                   FORGOT PASSWORD MUTATION
-// _____________________________________________________________
+		return { user };
+	}
+	// _____________________________________________________________
+	//                   FORGOT PASSWORD MUTATION
+	// _____________________________________________________________
+
 	@Mutation(() => Boolean)
 	async forgotPassword(
 		@Arg('email') email: string,
-		@Ctx() { em, redis }: MyContext
+		@Ctx() { redis }: MyContext
 	) {
-		const user = await em.findOne(User, { email });
+		const user = await User.findOne({ where: { email } });
 		if (!user) {
 			// the email is not in the database.
 			return true;
@@ -127,30 +134,29 @@ export class UserResolver {
 		await sendEmail(
 			email,
 			`<a href="http://localhost:3000/change-password/${token}">reset password</a>`
-      return true
 		);
+		return true;
 	}
-// _____________________________________________________________
-//                         ME QUERY
-// _____________________________________________________________
+	// _____________________________________________________________
+	//                         ME QUERY
+	// _____________________________________________________________
 	@Query(() => User, { nullable: true })
-	async me(@Ctx() { req, em }: MyContext) {
+	me(@Ctx() { req }: MyContext) {
 		// you are not logged in
-		if (!req.session.userID) {
+		if (!req.session.UserID) {
 			return null;
 		}
 
-		const user = await em.findOne(User, { id: req.session.userID });
-		return user;
+		return User.findOne(req.session.UserID);
 	}
- 
-// _____________________________________________________________
-//                    REGISTER MUTATION 
-// _____________________________________________________________
-  @Mutation(() => UserResponse)
+
+	// _____________________________________________________________
+	//                    REGISTER MUTATION
+	// _____________________________________________________________
+	@Mutation(() => UserResponse)
 	async register(
 		@Arg('options') options: usernamePasswordInput,
-		@Ctx() { em, req }: MyContext
+		@Ctx() { req }: MyContext
 	): Promise<UserResponse> {
 		const errors = validateRegister(options);
 		if (errors) {
@@ -159,19 +165,21 @@ export class UserResolver {
 		const hashedPassword = await argon2.hash(options.password);
 		let user;
 		try {
-			const result = await (em as EntityManager)
-				.createQueryBuilder(User)
-				.getKnexQuery()
-				.insert({
+			const result = await getConnection()
+				.createQueryBuilder()
+				.insert()
+				.into(User)
+				.values({
 					username: options.username,
 					email: options.email,
 					password: hashedPassword,
-					created_at: new Date(),
-					updated_at: new Date(),
 				})
-				.returning('*');
-			user = result[0];
+				.returning('*')
+				.execute();
+			console.log('result: ', result);
+			user = result.raw;
 		} catch (err) {
+			console.log('err: ', err);
 			// duplicate username error
 			if (err.code === '23505') {
 				return {
@@ -189,25 +197,24 @@ export class UserResolver {
 		// store user id session
 		// this will set a cookie
 		// keeps them logged in
-		req.session.userID = user.id;
+		req.session.UserID = user.id;
 
 		return { user };
 	}
-// _____________________________________________________________
-//                     LOGIN MUTATION
-// _____________________________________________________________
+	// _____________________________________________________________
+	//                     LOGIN MUTATION
+	// _____________________________________________________________
 
-  @Mutation(() => UserResponse)
+	@Mutation(() => UserResponse)
 	async login(
 		@Arg('usernameOrEmail') usernameOrEmail: string,
 		@Arg('password') password: string,
-		@Ctx() { em, req }: MyContext
+		@Ctx() { req }: MyContext
 	): Promise<UserResponse> {
-		const user = await em.findOne(
-			User,
+		const user = await User.findOne(
 			usernameOrEmail.includes('@')
-				? { email: usernameOrEmail }
-				: { username: usernameOrEmail }
+				? { where: { email: usernameOrEmail } }
+				: { where: { username: usernameOrEmail } }
 		);
 		if (!user) {
 			return {
@@ -231,16 +238,16 @@ export class UserResolver {
 			};
 		}
 
-		req.session.userID = user.id;
+		req.session.UserID = user.id;
 
 		return {
 			user,
 		};
-  }
-	
-// _____________________________________________________________
-//                     LOGOUT MUTATION
-// _____________________________________________________________
+	}
+
+	// _____________________________________________________________
+	//                     LOGOUT MUTATION
+	// _____________________________________________________________
 	@Mutation(() => Boolean)
 	logout(@Ctx() { req, res }: MyContext) {
 		return new Promise((resolve) =>
