@@ -11,7 +11,7 @@ import { toErrorMap } from '../utils/toErrorMap';
 
 interface registerProps {}
 
-export const Register: React.FC<registerProps> = ({}) => {
+const Register: React.FC<registerProps> = ({}) => {
 	const router = useRouter();
 	const [{}, register] = useRegisterMutation();
 	return (

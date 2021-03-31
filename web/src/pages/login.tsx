@@ -18,7 +18,7 @@ import NextLink from 'next/link';
 //_______________________________________________________________
 interface registerProps {}
 
-export const Login: React.FC<{}> = ({}) => {
+const Login: React.FC<{}> = ({}) => {
 	const router = useRouter();
 	const [{}, login] = useLoginMutation();
 	return (
