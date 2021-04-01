@@ -31,7 +31,11 @@ const Login: React.FC<{}> = ({}) => {
 						setErrors(toErrorMap(response.data.login.errors));
 					} else if (response.data?.login.user) {
 						// worked
-						router.push('/');
+						if (!router.query.next) {
+							router.push('/');
+						} else {
+							router.push(router.query.next);
+						}
 					}
 				}}
 			>

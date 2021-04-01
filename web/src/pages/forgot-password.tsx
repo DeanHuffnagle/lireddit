@@ -1,6 +1,4 @@
-//_______________________________________________________________
-//                          IMPORTS
-//_______________________________________________________________
+//// Imports ////
 import { Box, Flex, Link, Button } from '@chakra-ui/react';
 import { Formik, Form } from 'formik';
 import { withUrqlClient } from 'next-urql';
@@ -14,9 +12,7 @@ import { createUrqlClient } from '../utils/createUrqlClient';
 import { toErrorMap } from '../utils/toErrorMap';
 import login from './login';
 
-//_______________________________________________________________
-//                      FORGOT PASSWORD PAGE
-//_______________________________________________________________
+//// Forgot Password Page ////
 
 const forgotPassword: React.FC<{}> = ({}) => {
 	const [complete, setComplete] = useState(false);

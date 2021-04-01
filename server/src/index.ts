@@ -4,6 +4,7 @@ import cors from 'cors';
 import express from 'express';
 import session from 'express-session';
 import Redis from 'ioredis';
+import path from 'path';
 import 'reflect-metadata';
 import { buildSchema } from 'type-graphql';
 import { createConnection } from 'typeorm';
@@ -15,16 +16,19 @@ import { PostResolver } from './resolvers/post';
 import { UserResolver } from './resolvers/user';
 
 const main = async () => {
-	const con = await createConnection({
+	const conn = await createConnection({
 		type: 'postgres',
 		database: 'lireddit2',
 		username: 'postgres',
 		password: 'postgres',
 		logging: true,
 		synchronize: true,
+		migrations: [path.join(__dirname, './migrations/*')],
 		entities: [Post, User],
 	});
 
+	await conn.runMigrations();
+	// await Post.delete({});
 	const app = express();
 
 	const RedisStore = connectRedis(session);

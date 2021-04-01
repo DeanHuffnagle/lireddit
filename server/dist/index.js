@@ -18,6 +18,7 @@ const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const express_session_1 = __importDefault(require("express-session"));
 const ioredis_1 = __importDefault(require("ioredis"));
+const path_1 = __importDefault(require("path"));
 require("reflect-metadata");
 const type_graphql_1 = require("type-graphql");
 const typeorm_1 = require("typeorm");
@@ -28,15 +29,17 @@ const hello_1 = require("./resolvers/hello");
 const post_1 = require("./resolvers/post");
 const user_1 = require("./resolvers/user");
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
-    const con = yield typeorm_1.createConnection({
+    const conn = yield typeorm_1.createConnection({
         type: 'postgres',
         database: 'lireddit2',
         username: 'postgres',
         password: 'postgres',
         logging: true,
         synchronize: true,
+        migrations: [path_1.default.join(__dirname, './migrations/*')],
         entities: [Post_1.Post, User_1.User],
     });
+    yield conn.runMigrations();
     const app = express_1.default();
     const RedisStore = connect_redis_1.default(express_session_1.default);
     const redis = new ioredis_1.default({});
