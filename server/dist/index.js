@@ -24,6 +24,7 @@ const type_graphql_1 = require("type-graphql");
 const typeorm_1 = require("typeorm");
 const constants_1 = require("./constants");
 const Post_1 = require("./entities/Post");
+const Updoot_1 = require("./entities/Updoot");
 const User_1 = require("./entities/User");
 const hello_1 = require("./resolvers/hello");
 const post_1 = require("./resolvers/post");
@@ -37,7 +38,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
         logging: true,
         synchronize: true,
         migrations: [path_1.default.join(__dirname, './migrations/*')],
-        entities: [Post_1.Post, User_1.User],
+        entities: [Post_1.Post, User_1.User, Updoot_1.Updoot],
     });
     yield conn.runMigrations();
     const app = express_1.default();

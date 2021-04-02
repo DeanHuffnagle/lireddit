@@ -1,6 +1,4 @@
-//_______________________________________________________________
-//                         IMPORTS
-//_______________________________________________________________
+//// Imports ////
 import {
 	BaseEntity,
 	Column,
@@ -12,64 +10,45 @@ import {
 } from 'typeorm';
 import { Field, ObjectType } from 'type-graphql';
 import { Post } from './Post';
+import { Updoot } from './Updoot';
 
-//_______________________________________________________________
-//                       USER ENTITY
-//_______________________________________________________________
-
+//// User Entity ////
 @ObjectType()
 @Entity()
 export class User extends BaseEntity {
-	//_______________________________________________________________
-	//                         USER ID
-	//_______________________________________________________________
-
+	//// User ID ////
 	@Field()
 	@PrimaryGeneratedColumn()
 	id!: number;
 
-	//_______________________________________________________________
-	//                         USERNAME
-	//_______________________________________________________________
-
+	//// Username ////
 	@Field()
 	@Column({ unique: true })
 	username!: string;
 
-	//_______________________________________________________________
-	//                         EMAIL
-	//_______________________________________________________________
-
+	//// Email ////
 	@Field()
 	@Column({ unique: true })
 	email!: string;
 
-	//_______________________________________________________________
-	//                         PASSWORD
-	//_______________________________________________________________
-
+	//// Password ////
 	@Column()
 	password!: string;
 
-	//_______________________________________________________________
-	//               ONE TO MANY RELATIONSHIP WITH POSTS
-	//_______________________________________________________________
-
+	//// One To Many Relationship With Posts ////
 	@OneToMany(() => Post, (post) => post.creator)
 	posts: Post[];
 
-	//_______________________________________________________________
-	//                      CREATED AT
-	//_______________________________________________________________
+	//// One To Many Relationship With Updoots ////
+	@OneToMany(() => Updoot, (updoot) => updoot.user)
+	updoots: Updoot[];
 
+	//// Created At ////
 	@Field(() => String)
 	@CreateDateColumn()
 	createdAt: Date;
 
-	//_______________________________________________________________
-	//                      UPDATED AT
-	//_______________________________________________________________
-
+	//// Updated At ////
 	@Field(() => String)
 	@UpdateDateColumn()
 	updatedAt: Date;

@@ -1,17 +1,16 @@
-//_______________________________________________________________
-//                           IMPORTS
-//_______________________________________________________________
-
+//// Imports ////
 import argon2 from 'argon2';
 import { MyContext } from 'src/types';
 import {
 	Arg,
 	Ctx,
 	Field,
+	FieldResolver,
 	Mutation,
 	ObjectType,
 	Query,
 	Resolver,
+	Root,
 } from 'type-graphql';
 import { getConnection } from 'typeorm';
 import { v4 } from 'uuid';
@@ -21,10 +20,7 @@ import { sendEmail } from '../utils/sendEmail';
 import { usernamePasswordInput } from '../utils/usernamePasswordInput';
 import { validateRegister } from '../utils/validateRegister';
 
-//_______________________________________________________________
-//                       OBJECT TYPES
-//_______________________________________________________________
-
+//// Object Types ////
 @ObjectType()
 class FieldError {
 	@Field()
@@ -42,16 +38,21 @@ class UserResponse {
 	user?: User;
 }
 
-//_______________________________________________________________
-//                        RESOLVERS
-//_______________________________________________________________
-
-@Resolver()
+//// Resolver ////
+@Resolver(User)
 export class UserResolver {
-	// _____________________________________________________________
-	//                 CHANGE PASSWORD MUTATION
-	// _____________________________________________________________
+	//// Field Resolvers ////
+	@FieldResolver(() => String)
+	email(@Root() user: User, @Ctx() { req }: MyContext) {
+		// this is the current user
+		if (req.session.UserID === user.id) {
+			return user.email;
+		}
+		// not the current user
+		return '';
+	}
 
+	//// Change Password Mutation ////
 	@Mutation(() => UserResponse)
 	async changePassword(
 		@Arg('token') token: string,
@@ -107,10 +108,7 @@ export class UserResolver {
 
 		return { user };
 	}
-	// _____________________________________________________________
-	//                   FORGOT PASSWORD MUTATION
-	// _____________________________________________________________
-
+	//// Forgot Password Mutation ////
 	@Mutation(() => Boolean)
 	async forgotPassword(
 		@Arg('email') email: string,
@@ -137,9 +135,8 @@ export class UserResolver {
 		);
 		return true;
 	}
-	// _____________________________________________________________
-	//                         ME QUERY
-	// _____________________________________________________________
+
+	//// Me Query ////
 	@Query(() => User, { nullable: true })
 	me(@Ctx() { req }: MyContext) {
 		// you are not logged in
@@ -150,9 +147,7 @@ export class UserResolver {
 		return User.findOne(req.session.UserID);
 	}
 
-	// _____________________________________________________________
-	//                    REGISTER MUTATION
-	// _____________________________________________________________
+	//// Register Mutation ////
 	@Mutation(() => UserResponse)
 	async register(
 		@Arg('options') options: usernamePasswordInput,
@@ -200,10 +195,8 @@ export class UserResolver {
 
 		return { user };
 	}
-	// _____________________________________________________________
-	//                     LOGIN MUTATION
-	// _____________________________________________________________
 
+	//// Login Mutation ////
 	@Mutation(() => UserResponse)
 	async login(
 		@Arg('usernameOrEmail') usernameOrEmail: string,
@@ -244,9 +237,7 @@ export class UserResolver {
 		};
 	}
 
-	// _____________________________________________________________
-	//                     LOGOUT MUTATION
-	// _____________________________________________________________
+	//// Logout Mutation ////
 	@Mutation(() => Boolean)
 	logout(@Ctx() { req, res }: MyContext) {
 		return new Promise((resolve) =>
