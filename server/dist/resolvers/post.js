@@ -62,16 +62,36 @@ let PostResolver = class PostResolver {
             const isUpdoot = value !== -1;
             const realValue = isUpdoot ? 1 : -1;
             const userId = req.session.UserID;
-            yield Updoot_1.Updoot.insert({
-                userId,
-                postId,
-                value: realValue,
-            });
-            yield typeorm_1.getConnection().query(`
-      UPDATE post 
-      SET points = points + $1
-      WHERE id = $2
-    `, [realValue, postId]);
+            const updoot = yield Updoot_1.Updoot.findOne({ where: { postId, userId } });
+            if (updoot && updoot.value !== realValue) {
+                console.log('changing vote: ');
+                yield typeorm_1.getConnection().transaction((tm) => __awaiter(this, void 0, void 0, function* () {
+                    yield tm.query(`
+          update updoot
+          set value = $1
+          where "postId" = $2 and "userId" = $3
+        `, [realValue, postId, userId]);
+                    yield tm.query(`
+          UPDATE post 
+          SET points = points + $1
+          WHERE id = $2
+        `, [2 * realValue, postId]);
+                }));
+            }
+            else if (!updoot) {
+                console.log('hasnt voted: ');
+                yield typeorm_1.getConnection().transaction((tm) => __awaiter(this, void 0, void 0, function* () {
+                    yield tm.query(`
+          insert into updoot ("userId", "postId", value)
+          values ($1, $2, $3)
+        `, [userId, postId, realValue]);
+                    yield tm.query(`
+          UPDATE post 
+          SET points = points + $1
+          WHERE id = $2
+        `, [realValue, postId]);
+                }));
+            }
             return true;
         });
     }
