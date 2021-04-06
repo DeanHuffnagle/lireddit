@@ -46,6 +46,11 @@ const Login: React.FC<{}> = ({}) => {
 							placeholder="username or email"
 							label="Username or Email:"
 						/>
+						<Flex mt={1}>
+							<NextLink href="/register">
+								<Link ml="auto">Don't have an account?</Link>
+							</NextLink>
+						</Flex>
 						<Box mt="4">
 							<InputField
 								name="password"
